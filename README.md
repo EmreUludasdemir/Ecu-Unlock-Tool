@@ -107,6 +107,12 @@ Donanım: başlangıç için **Linux + SocketCAN + CANable** yeterli.
 - Simos18 entegrasyonu sonraki read-only milestone olarak planlaniyor.
 - Write/recovery gercek donanimda en sona birakilacak.
 
+### Simos18 read-only branch
+
+The `simos18-readonly` branch is for safe documentation, driver boundary mapping,
+and stub tests only. It does not implement unlock exploits, RSA bypasses, boot
+password recovery, emissions defeat, or real ECU write support.
+
 ## Yeni ECU eklemek
 
 `drivers/` altına yeni bir modül koy, `ECUDriver`'dan türet, `@registry.register`
