@@ -44,6 +44,21 @@ sudo ip link set can0 type can bitrate 500000
 sudo ip link set up can0
 ```
 
+### Windows
+
+```powershell
+py -m venv .venv
+.venv\Scripts\activate
+py -m pip install -r requirements.txt pytest
+py demo_virtual.py
+py -m pytest -q
+pytest -q
+```
+
+Windows'ta `python` komutu Microsoft Store alias'ina duserse `py` launcher
+kullanilabilir veya App Execution Aliases ayarindan `python.exe` / `python3.exe`
+kapatilabilir.
+
 Donanım: başlangıç için **Linux + SocketCAN + CANable** yeterli. Bench/Boot
 için sonra Tricore BSL probe'u.
 
@@ -81,6 +96,16 @@ python -m autoflash.cli write    --channel can0 --block CAL --file ./tune/CAL.bi
 ```
 
 Donanım: başlangıç için **Linux + SocketCAN + CANable** yeterli.
+
+## Current milestone
+
+- Virtual ECU simulator tamamlandi.
+- Mock ECU driver tamamlandi.
+- CLI `--virtual` modu tamamlandi.
+- Regression tests mevcut.
+- Gercek ECU destegi henuz yok.
+- Simos18 entegrasyonu sonraki read-only milestone olarak planlaniyor.
+- Write/recovery gercek donanimda en sona birakilacak.
 
 ## Yeni ECU eklemek
 
