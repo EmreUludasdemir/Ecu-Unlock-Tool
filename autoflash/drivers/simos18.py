@@ -17,7 +17,9 @@ from __future__ import annotations
 
 from typing import List
 
+from ..data.memory_maps import build_default_memory_map_database
 from ..ecu_driver import ECUDriver, EcuInfo, MemoryBlock
+from ..memory_map import MemoryBlockSpec
 from ..registry import registry
 
 
@@ -41,14 +43,9 @@ class Simos18Driver(ECUDriver):
         return info
 
     def memory_map(self) -> List[MemoryBlock]:
-        # NOT: adres/boyutlar ECU revizyonuna gore degisir. Gercek degerler icin
-        # VW_Flash'taki blok tanimlarina bak; burasi placeholder.
-        return [
-            MemoryBlock("CAL",  address=0x0080_0000, size=0x10_0000,
-                        compression="lzss", encryption="aes-cbc"),
-            MemoryBlock("ASW1", address=0x0090_0000, size=0x20_0000,
-                        compression="lzss", encryption="aes-cbc"),
-        ]
+        # Placeholder metadata only. This is not write-ready real ECU support.
+        spec = build_default_memory_map_database().get("simos18")
+        return [_to_memory_block(block) for block in spec.blocks]
 
     def compute_key(self, seed: bytes, level: int) -> bytes:
         raise NotImplementedError(
@@ -63,10 +60,21 @@ class Simos18Driver(ECUDriver):
         )
 
     def encode_container(self, data: bytes, block: MemoryBlock) -> bytes:
-        data = self.correct_checksum(data, block)
-        raise NotImplementedError("compress+encrypt: bkz. VW_Flash docs/docs.md.")
+        raise NotImplementedError(
+            "Simos18 encode/write support is intentionally not implemented."
+        )
 
     def correct_checksum(self, data: bytes, block: MemoryBlock) -> bytes:
         raise NotImplementedError(
             "ASW/CAL ve ECM2->ECM3 checksum duzeltmesi icin VW_Flash referans."
         )
+
+
+def _to_memory_block(spec: MemoryBlockSpec) -> MemoryBlock:
+    return MemoryBlock(
+        name=spec.name,
+        address=spec.address,
+        size=spec.size,
+        compression=spec.compression,
+        encryption=spec.encryption,
+    )

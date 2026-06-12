@@ -16,7 +16,9 @@ from typing import List
 
 from ..checksum import ToyCrc32Checksum
 from ..container import ToyXorContainerCodec
+from ..data.memory_maps import build_default_memory_map_database
 from ..ecu_driver import ECUDriver, EcuInfo, MemoryBlock
+from ..memory_map import MemoryBlockSpec
 from ..registry import registry
 from ..security import MockXorRotateSeedKeyProvider
 
@@ -46,10 +48,8 @@ class MockDriver(ECUDriver):
         return info
 
     def memory_map(self) -> List[MemoryBlock]:
-        return [
-            MemoryBlock("CAL", address=0x80000000, size=256),
-            MemoryBlock("ASW", address=0x80100000, size=256),
-        ]
+        spec = build_default_memory_map_database().get("mock")
+        return [_to_memory_block(block) for block in spec.blocks]
 
     def compute_key(self, seed: bytes, level: int) -> bytes:
         return self.seed_key_provider.compute_key(seed, level)
@@ -64,3 +64,13 @@ class MockDriver(ECUDriver):
 
     def correct_checksum(self, data: bytes, block: MemoryBlock) -> bytes:
         return self.checksum_strategy.apply(data)
+
+
+def _to_memory_block(spec: MemoryBlockSpec) -> MemoryBlock:
+    return MemoryBlock(
+        name=spec.name,
+        address=spec.address,
+        size=spec.size,
+        compression=spec.compression,
+        encryption=spec.encryption,
+    )

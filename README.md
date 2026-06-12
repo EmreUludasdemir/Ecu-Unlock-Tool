@@ -116,6 +116,12 @@ seed-key handling, toy checksum strategies, toy container codecs, and
 recovery-oriented simulator tests. It does not implement real OEM seed-key
 algorithms, unlock exploits, protection bypasses, or real ECU write support.
 
+### Memory map database branch
+
+The `memory-map-database` branch introduces a safe metadata layer for ECU family
+and block definitions. It models the idea of an ECU/protocol database without
+adding real unlock, bypass, or write support.
+
 ## Yeni ECU eklemek
 
 `drivers/` altına yeni bir modül koy, `ECUDriver`'dan türet, `@registry.register`
