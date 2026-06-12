@@ -78,6 +78,9 @@ pytest -q                  # regression tests
 python -m autoflash.cli identify --virtual
 python -m autoflash.cli read --virtual --out ./dump
 python -m autoflash.cli write --virtual --block CAL --file ./dump/CAL.bin
+python -m autoflash.cli write --virtual --block CAL --file ./dump/CAL.bin --plan
+python -m autoflash.cli write --virtual --block CAL --file ./dump/CAL.bin --dry-run
+python -m autoflash.cli write --virtual --block CAL --file ./dump/CAL.bin --dry-run --audit-log ./logs/audit.jsonl
 pytest -q
 ```
 
@@ -128,6 +131,12 @@ adding real unlock, bypass, or write support.
 Drivers declare whether they are virtual-only, read-only, or research stubs. This
 makes the framework safer by preventing placeholder drivers from being
 interpreted as real ECU unlock/write support.
+
+### Operation plan and dry-run branch
+
+The `operation-plan-and-dry-run` branch adds operation planning, dry-run support,
+and JSONL audit logging for write-like operations. It keeps real ECU write/unlock
+support disabled.
 
 ## Yeni ECU eklemek
 

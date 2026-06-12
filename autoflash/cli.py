@@ -16,6 +16,7 @@ from .connection import BaseConnection, IsoTpCanConnection
 from .drivers import mock  # noqa: F401  (mock driver'i registry'ye yukle)
 from .drivers import simos18  # noqa: F401  (gercek platform driver'ini registry'ye yukle)
 from .flasher import Flasher
+from .operation_plan import AuditLogEntry, OperationPlanner, append_audit_log
 from .virtual import VirtualCanConnection, VirtualECU
 
 
@@ -51,17 +52,47 @@ def cmd_read(args) -> int:
 
 
 def cmd_write(args) -> int:
+    audit_entry = None
     with _connection(args) as conn:
         flasher = Flasher(conn)
         flasher.identify()
         caps = flasher.driver.capabilities()
+        planner = OperationPlanner()
+        plan = planner.plan_write(
+            driver=flasher.driver,
+            connection=conn,
+            files={args.block: args.file},
+            dry_run=bool(args.dry_run or args.plan),
+        )
+
+        if args.plan:
+            print(plan.to_text())
+            audit_entry = AuditLogEntry.from_plan(plan, True, "plan generated")
+            _write_audit_log(args.audit_log, audit_entry)
+            return 0
+
+        if args.dry_run:
+            print(plan.to_text())
+            print("dry-run tamamlandi: write islemi calistirilmadi.")
+            audit_entry = AuditLogEntry.from_plan(plan, True, "dry-run completed")
+            _write_audit_log(args.audit_log, audit_entry)
+            return 0
+
         if not args.virtual and not caps.allows_write():
+            audit_entry = AuditLogEntry.from_plan(
+                plan,
+                False,
+                "write rejected: driver does not declare real ECU write support",
+            )
+            _write_audit_log(args.audit_log, audit_entry)
             print(
                 "write reddedildi: driver real ECU write support beyan etmiyor.",
                 file=sys.stderr,
             )
             return 2
         flasher.write(files={args.block: args.file})
+        audit_entry = AuditLogEntry.from_plan(plan, True, "write completed")
+        _write_audit_log(args.audit_log, audit_entry)
     print("flash tamam:", args.block)
     return 0
 
@@ -90,6 +121,11 @@ def _print_capabilities(caps) -> None:
     print(f"real_ecu_supported: {str(caps.real_ecu_supported).lower()}")
     print(f"allows_write: {str(caps.allows_write()).lower()}")
     print(f"notes: {caps.notes}")
+
+
+def _write_audit_log(path, entry) -> None:
+    if path and entry is not None:
+        append_audit_log(path, entry)
 
 
 def _add_connection_args(parser: argparse.ArgumentParser) -> None:
@@ -121,6 +157,9 @@ def build_parser() -> argparse.ArgumentParser:
     _add_connection_args(sp)
     sp.add_argument("--block", required=True)
     sp.add_argument("--file", required=True)
+    sp.add_argument("--dry-run", action="store_true", help="Planla, write yapma")
+    sp.add_argument("--plan", action="store_true", help="Sadece operation plan yaz")
+    sp.add_argument("--audit-log", default=None, help="JSONL audit log dosyasi")
     sp.set_defaults(func=cmd_write)
     return p
 
