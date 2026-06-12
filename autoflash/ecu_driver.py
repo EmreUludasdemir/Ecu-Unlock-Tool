@@ -87,3 +87,15 @@ class ECUDriver(ABC):
     def correct_checksum(self, data: bytes, block: MemoryBlock) -> bytes:
         """Degistirilmis blogun checksum'larini yeniden hesapla."""
         ...
+
+    def capabilities(self):
+        from .capabilities import DriverCapabilities, DriverSafetyLevel
+
+        return DriverCapabilities(
+            driver_name=self.name,
+            safety_level=DriverSafetyLevel.RESEARCH_STUB,
+            notes=(
+                "Default safe capabilities: no real ECU write/unlock support "
+                "declared."
+            ),
+        )

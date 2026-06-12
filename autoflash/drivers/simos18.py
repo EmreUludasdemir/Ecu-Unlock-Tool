@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from typing import List
 
+from ..capabilities import ConnectionMode, DriverCapabilities, DriverSafetyLevel
 from ..data.memory_maps import build_default_memory_map_database
 from ..ecu_driver import ECUDriver, EcuInfo, MemoryBlock
 from ..memory_map import MemoryBlockSpec
@@ -46,6 +47,22 @@ class Simos18Driver(ECUDriver):
         # Placeholder metadata only. This is not write-ready real ECU support.
         spec = build_default_memory_map_database().get("simos18")
         return [_to_memory_block(block) for block in spec.blocks]
+
+    def capabilities(self) -> DriverCapabilities:
+        return DriverCapabilities(
+            driver_name=self.name,
+            safety_level=DriverSafetyLevel.READ_ONLY,
+            supported_connection_modes=(ConnectionMode.OBD,),
+            identify_supported=True,
+            read_supported=False,
+            write_supported=False,
+            security_access_supported=False,
+            real_ecu_supported=False,
+            notes=(
+                "Read-only research placeholder. No seed-key, bypass, "
+                "checksum, container, or write support implemented."
+            ),
+        )
 
     def compute_key(self, seed: bytes, level: int) -> bytes:
         raise NotImplementedError(

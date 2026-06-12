@@ -107,6 +107,7 @@ Donanım: başlangıç için **Linux + SocketCAN + CANable** yeterli.
 - Simos18 entegrasyonu sonraki read-only milestone olarak planlaniyor.
 - SeedKeyProvider architecture is implemented in a separate research branch.
 - Real ECU support is still not implemented.
+- Driver capabilities/safety policy branch planned/implemented.
 - Write/recovery gercek donanimda en sona birakilacak.
 
 ### SeedKeyProvider research branch
@@ -121,6 +122,12 @@ algorithms, unlock exploits, protection bypasses, or real ECU write support.
 The `memory-map-database` branch introduces a safe metadata layer for ECU family
 and block definitions. It models the idea of an ECU/protocol database without
 adding real unlock, bypass, or write support.
+
+### Driver capabilities and safety policy
+
+Drivers declare whether they are virtual-only, read-only, or research stubs. This
+makes the framework safer by preventing placeholder drivers from being
+interpreted as real ECU unlock/write support.
 
 ## Yeni ECU eklemek
 

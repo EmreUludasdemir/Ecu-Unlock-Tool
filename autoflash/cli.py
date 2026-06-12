@@ -54,9 +54,42 @@ def cmd_write(args) -> int:
     with _connection(args) as conn:
         flasher = Flasher(conn)
         flasher.identify()
+        caps = flasher.driver.capabilities()
+        if not args.virtual and not caps.allows_write():
+            print(
+                "write reddedildi: driver real ECU write support beyan etmiyor.",
+                file=sys.stderr,
+            )
+            return 2
         flasher.write(files={args.block: args.file})
     print("flash tamam:", args.block)
     return 0
+
+
+def cmd_capabilities(args) -> int:
+    with _connection(args) as conn:
+        flasher = Flasher(conn)
+        flasher.identify()
+        caps = flasher.driver.capabilities()
+    _print_capabilities(caps)
+    return 0
+
+
+def _print_capabilities(caps) -> None:
+    modes = ", ".join(mode.value for mode in caps.supported_connection_modes)
+    print(f"driver: {caps.driver_name}")
+    print(f"safety_level: {caps.safety_level.value}")
+    print(f"connection_modes: {modes}")
+    print(f"identify_supported: {str(caps.identify_supported).lower()}")
+    print(f"read_supported: {str(caps.read_supported).lower()}")
+    print(f"write_supported: {str(caps.write_supported).lower()}")
+    print(
+        "security_access_supported: "
+        f"{str(caps.security_access_supported).lower()}"
+    )
+    print(f"real_ecu_supported: {str(caps.real_ecu_supported).lower()}")
+    print(f"allows_write: {str(caps.allows_write()).lower()}")
+    print(f"notes: {caps.notes}")
 
 
 def _add_connection_args(parser: argparse.ArgumentParser) -> None:
@@ -79,6 +112,10 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--out", default="./dump")
     sp.add_argument("--block", default=None)
     sp.set_defaults(func=cmd_read)
+
+    sp = sub.add_parser("capabilities", help="Driver capability bilgisini yaz")
+    _add_connection_args(sp)
+    sp.set_defaults(func=cmd_capabilities)
 
     sp = sub.add_parser("write", help="Firmware yaz")
     _add_connection_args(sp)
