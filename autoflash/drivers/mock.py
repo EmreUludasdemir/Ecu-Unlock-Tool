@@ -14,15 +14,22 @@ from __future__ import annotations
 
 from typing import List
 
+from ..checksum import ToyCrc32Checksum
+from ..container import ToyXorContainerCodec
 from ..ecu_driver import ECUDriver, EcuInfo, MemoryBlock
 from ..registry import registry
-from ..virtual import apply_checksum, seed_to_key, xor_crypt
+from ..security import MockXorRotateSeedKeyProvider
 
 
 @registry.register
 class MockDriver(ECUDriver):
     name = "mock"
     supported_ids = ("MOCK",)
+
+    def __init__(self) -> None:
+        self.seed_key_provider = MockXorRotateSeedKeyProvider()
+        self.checksum_strategy = ToyCrc32Checksum()
+        self.container_codec = ToyXorContainerCodec()
 
     def identify(self, client) -> EcuInfo:
         info = EcuInfo(name="VirtualECU")
@@ -45,15 +52,15 @@ class MockDriver(ECUDriver):
         ]
 
     def compute_key(self, seed: bytes, level: int) -> bytes:
-        return seed_to_key(seed)
+        return self.seed_key_provider.compute_key(seed, level)
 
     def decode_container(self, raw: bytes, block: MemoryBlock) -> bytes:
         # decrypt (toy). Gercekte: AES-CBC decrypt + LZSS decompress.
-        return xor_crypt(raw)
+        return self.container_codec.decode(raw)
 
     def encode_container(self, data: bytes, block: MemoryBlock) -> bytes:
         # checksum-correct -> encrypt. Gercekte: + compress.
-        return xor_crypt(self.correct_checksum(data, block))
+        return self.container_codec.encode(self.correct_checksum(data, block))
 
     def correct_checksum(self, data: bytes, block: MemoryBlock) -> bytes:
-        return apply_checksum(data)
+        return self.checksum_strategy.apply(data)

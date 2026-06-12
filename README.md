@@ -105,7 +105,16 @@ Donanım: başlangıç için **Linux + SocketCAN + CANable** yeterli.
 - Regression tests mevcut.
 - Gercek ECU destegi henuz yok.
 - Simos18 entegrasyonu sonraki read-only milestone olarak planlaniyor.
+- SeedKeyProvider architecture is implemented in a separate research branch.
+- Real ECU support is still not implemented.
 - Write/recovery gercek donanimda en sona birakilacak.
+
+### SeedKeyProvider research branch
+
+The `seedkey-provider-research` branch adds a safe provider architecture for mock
+seed-key handling, toy checksum strategies, toy container codecs, and
+recovery-oriented simulator tests. It does not implement real OEM seed-key
+algorithms, unlock exploits, protection bypasses, or real ECU write support.
 
 ## Yeni ECU eklemek
 

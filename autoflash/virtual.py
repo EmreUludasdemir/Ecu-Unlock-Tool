@@ -20,43 +20,46 @@ from __future__ import annotations
 
 import os
 import queue
-import struct
-import zlib
 from typing import Dict, Optional
 
 from udsoncan.connections import BaseConnection as _UdsBaseConnection
 from udsoncan.exceptions import TimeoutException
 
+from .checksum import ToyCrc32Checksum
 from .connection import BaseConnection as _FrameworkConnection
+from .container import DEFAULT_TOY_XOR_KEY, ToyXorContainerCodec
+from .security import MOCK_XOR_ROTATE_SECRET, MockXorRotateSeedKeyProvider
 
 # --- toy kripto/checksum (ECU <-> mock driver ortak sozlesmesi) -------------
 
-_XOR_KEY = b"\xDE\xAD\xBE\xEF"
-_KEY_SECRET = 0x1234_5678
+_XOR_KEY = DEFAULT_TOY_XOR_KEY
+_KEY_SECRET = MOCK_XOR_ROTATE_SECRET
+_CHECKSUM = ToyCrc32Checksum()
+_CODEC = ToyXorContainerCodec(_XOR_KEY)
+_SEED_KEY_PROVIDER = MockXorRotateSeedKeyProvider(_KEY_SECRET)
 
 
 def xor_crypt(data: bytes, key: bytes = _XOR_KEY) -> bytes:
     """Simetrik XOR 'sifreleme' (oyuncak)."""
-    return bytes(b ^ key[i % len(key)] for i, b in enumerate(data))
+    if key == _XOR_KEY:
+        return _CODEC.encode(data)
+    return ToyXorContainerCodec(key).encode(data)
 
 
 def apply_checksum(flat: bytes) -> bytes:
     """Son 4 byte = crc32(geri kalan). Checksum 'duzeltme'."""
-    payload = flat[:-4]
-    return payload + struct.pack("<I", zlib.crc32(payload) & 0xFFFFFFFF)
+    return _CHECKSUM.apply(flat)
 
 
 def verify_checksum(flat: bytes) -> bool:
-    payload = flat[:-4]
-    return flat[-4:] == struct.pack("<I", zlib.crc32(payload) & 0xFFFFFFFF)
+    return _CHECKSUM.verify(flat)
 
 
 def seed_to_key(seed: bytes, secret: int = _KEY_SECRET) -> bytes:
     """Seed -> key (oyuncak): XOR + rotate. Gercek SA2 degildir."""
-    val = int.from_bytes(seed, "big")
-    mixed = (val ^ secret) & 0xFFFFFFFF
-    rotated = ((mixed << 3) | (mixed >> 29)) & 0xFFFFFFFF
-    return rotated.to_bytes(4, "big")
+    if secret == _KEY_SECRET:
+        return _SEED_KEY_PROVIDER.compute_key(seed, level=1)
+    return MockXorRotateSeedKeyProvider(secret).compute_key(seed, level=1)
 
 
 # --- NRC kisaltmalari -------------------------------------------------------
