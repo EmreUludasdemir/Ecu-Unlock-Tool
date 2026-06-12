@@ -69,7 +69,7 @@ için sonra Tricore BSL probe'u.
 ```bash
 pip install -r requirements.txt pytest
 python demo_virtual.py     # uctan uca demo: identify -> read -> write -> checksum gate
-pytest -q                  # 7 regresyon testi
+pytest -q                  # regression tests
 ```
 
 ### CLI
