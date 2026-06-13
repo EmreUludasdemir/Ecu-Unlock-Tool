@@ -2,6 +2,7 @@
 
 ## Safety and Architecture
 
+- [Architecture overview](architecture_overview.md)
 - [Driver capabilities and safety policy](driver_capabilities_policy.md)
 - [Operation plan and dry-run](operation_plan_and_dry_run.md)
 - [SeedKeyProvider research plan](seed_key_provider_plan.md)

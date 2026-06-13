@@ -42,6 +42,20 @@ write support.
 | Mock driver | `autoflash/drivers/mock.py` | Safe reference driver for tests |
 | CLI | `autoflash/cli.py` | `identify`, `capabilities`, `read`, and `write` commands |
 
+```mermaid
+flowchart LR
+    CLI[CLI / demo_virtual.py] --> Flasher[Flasher orchestration]
+    Flasher --> Conn[Connection layer]
+    Flasher --> Driver[ECUDriver plugin]
+    Conn --> Virtual[Virtual UDS ECU]
+    Driver --> Security[SeedKeyProvider]
+    Driver --> Checksum[Checksum strategy]
+    Driver --> Container[Container codec]
+    Driver --> MemoryMap[Memory map database]
+    Flasher --> Plan[Operation plan / dry-run]
+    Plan --> Audit[JSONL audit log]
+```
+
 ## Quick Start
 
 Linux/macOS:
@@ -67,6 +81,27 @@ py -m pytest -q
 If the Windows `python` command opens the Microsoft Store alias, use the `py`
 launcher or disable the `python.exe` / `python3.exe` App Execution Aliases in
 Windows settings.
+
+## Example Virtual Run
+
+```text
+1) IDENTIFY
+ECU    : VirtualECU
+VIN    : WVWMOCK1234567890
+driver : mock
+
+2) READ
+CAL.bin and ASW.bin were read from the virtual ECU.
+
+3) WRITE
+Virtual write completed with toy seed-key and checksum correction.
+
+4) CHECKSUM GATE
+Bad checksum was rejected with GeneralProgrammingFailure.
+```
+
+This demo runs entirely against the virtual ECU. No real ECU, CAN adapter,
+unlock exploit, or real write support is used.
 
 ## CLI
 
@@ -118,6 +153,7 @@ See [docs/README.md](docs/README.md) for the project documentation index.
 
 Key planning documents:
 
+- [Architecture overview](docs/architecture_overview.md)
 - [Driver capabilities and safety policy](docs/driver_capabilities_policy.md)
 - [Operation plan and dry-run](docs/operation_plan_and_dry_run.md)
 - [SeedKeyProvider research plan](docs/seed_key_provider_plan.md)
