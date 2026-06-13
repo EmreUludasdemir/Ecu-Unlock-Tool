@@ -1,172 +1,174 @@
 # AutoFlash
 
-Pluggable, çok-platformlu ECU flashing framework **iskeleti** — Autotuner /
-KESS3 / Flex gibi profesyonel araçların çekirdek mimarisinin açık, eğitim
-amaçlı bir Python karşılığı.
+![Tests](https://github.com/EmreUludasdemir/Ecu-Unlock-Tool/actions/workflows/tests.yml/badge.svg)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Scope](https://img.shields.io/badge/scope-educational%20virtual%20ECU-orange)
 
-Bu repo **framework**'ü verir; her ECU ailesi için platform-spesifik mantık
-(seed/key, container, checksum) ayrı bir `ECUDriver` modülünde yaşar. Tam
-referans implementasyon için: [bri3d/VW_Flash](https://github.com/bri3d/VW_Flash).
+AutoFlash is an educational ECU flashing framework skeleton. It models the
+architecture of professional read/write tools with a virtual UDS ECU simulator,
+a mock ECU driver, driver safety metadata, operation planning, dry-run support,
+audit logging, a CLI, and pytest regression tests.
 
-## Mimari
+It does not implement real ECU unlock exploits, OEM seed-key algorithms,
+RSA/SBOOT/CBOOT bypasses, boot password recovery, emissions defeat, or real ECU
+write support.
 
-```
+## Architecture
+
+```text
                  +------------------+
-   CLI / app  -> |     Flasher      |  orkestrasyon: identify -> read/write
+   CLI / app  -> |     Flasher      |  orchestration: identify -> read/write
                  +--------+---------+
                           |
         +-----------------+------------------+
         |                                    |
 +-------v--------+                  +--------v---------+
-|  BaseConnection|                  |    ECUDriver     |  <- platforma OZEL
+|  BaseConnection|                  |    ECUDriver     |
 |  (transport)   |                  |  (plugin)        |
 +-------+--------+                  +--------+---------+
         |                                    |
-  OBD / Bench / Boot              seed/key, memory map,
-  (CAN/ISO-TP, BSL...)            container (enc/comp), checksum
+  OBD / Bench / Boot              seed-key provider,
+  (CAN/ISO-TP, BSL...)            memory map, container, checksum
 ```
 
-| Katman          | Dosya                | Sorumluluk |
-|-----------------|----------------------|------------|
-| Transport       | `connection.py`      | OBD (CAN/ISO-TP) / Bench / Boot soyutlaması |
-| UDS akışı       | `flasher.py`         | session, security access, 0x34/0x36/0x37 |
-| Driver arayüzü  | `ecu_driver.py`      | platform-spesifik sözleşme |
-| Registry        | `registry.py`        | ECU → driver eşlemesi |
-| Örnek driver    | `drivers/simos18.py` | iskelet (açık kaynağa referanslı) |
-| CLI             | `cli.py`             | identify / read / write |
+| Layer | File | Responsibility |
+| --- | --- | --- |
+| Transport | `autoflash/connection.py` | OBD, CAN/ISO-TP, bench, and boot transport abstraction |
+| UDS flow | `autoflash/flasher.py` | Identify, read, write orchestration |
+| Driver API | `autoflash/ecu_driver.py` | ECU-family contract |
+| Registry | `autoflash/registry.py` | ECU-to-driver matching |
+| Virtual ECU | `autoflash/virtual.py` | Hardware-free UDS simulator |
+| Mock driver | `autoflash/drivers/mock.py` | Safe reference driver for tests |
+| CLI | `autoflash/cli.py` | `identify`, `capabilities`, `read`, and `write` commands |
 
-## Kurulum
+## Quick Start
+
+Linux/macOS:
 
 ```bash
-pip install -r requirements.txt          # python-can, can-isotp, udsoncan
-# Linux'ta SocketCAN:
-sudo ip link set can0 type can bitrate 500000
-sudo ip link set up can0
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-dev.txt
+python demo_virtual.py
+python -m pytest -q
 ```
 
-### Windows
+Windows:
 
 ```powershell
 py -m venv .venv
 .venv\Scripts\activate
-py -m pip install -r requirements.txt pytest
+py -m pip install -r requirements-dev.txt
 py demo_virtual.py
 py -m pytest -q
-pytest -q
 ```
 
-Windows'ta `python` komutu Microsoft Store alias'ina duserse `py` launcher
-kullanilabilir veya App Execution Aliases ayarindan `python.exe` / `python3.exe`
-kapatilabilir.
+If the Windows `python` command opens the Microsoft Store alias, use the `py`
+launcher or disable the `python.exe` / `python3.exe` App Execution Aliases in
+Windows settings.
 
-Donanım: başlangıç için **Linux + SocketCAN + CANable** yeterli. Bench/Boot
-için sonra Tricore BSL probe'u.
+## CLI
 
-## Kullanım
-
-### Sanal ECU (donanım yok) — burada başla
-
-```bash
-pip install -r requirements.txt pytest
-python demo_virtual.py     # uctan uca demo: identify -> read -> write -> checksum gate
-pytest -q                  # regression tests
-```
-
-### CLI
+Virtual ECU mode does not require hardware:
 
 ```bash
 python -m autoflash.cli identify --virtual
+python -m autoflash.cli capabilities --virtual
 python -m autoflash.cli read --virtual --out ./dump
-python -m autoflash.cli write --virtual --block CAL --file ./dump/CAL.bin
 python -m autoflash.cli write --virtual --block CAL --file ./dump/CAL.bin --plan
 python -m autoflash.cli write --virtual --block CAL --file ./dump/CAL.bin --dry-run
 python -m autoflash.cli write --virtual --block CAL --file ./dump/CAL.bin --dry-run --audit-log ./logs/audit.jsonl
-pytest -q
+python -m autoflash.cli write --virtual --block CAL --file ./dump/CAL.bin
 ```
 
-Sanal ECU (`autoflash/virtual.py`) gerçek `udsoncan.Client`'a ham UDS byte
-seviyesinde cevap verir; yani Flasher'ın **gerçek kodu** test edilir, sadece
-transport sahtedir. Donanıma geçince tek değişiklik:
-`VirtualCanConnection` → `IsoTpCanConnection`.
+The virtual ECU answers raw UDS bytes through the same flasher path used by the
+transport abstraction. The only transport swap is:
 
-### Gerçek ECU (SocketCAN)
+```text
+VirtualCanConnection -> IsoTpCanConnection
+```
+
+SocketCAN examples are kept as framework placeholders for owned/authorized
+research hardware. Real ECU write, unlock, and bypass support is intentionally
+not implemented.
 
 ```bash
-sudo ip link set can0 type can bitrate 500000 && sudo ip link set up can0
+sudo ip link set can0 type can bitrate 500000
+sudo ip link set up can0
 python -m autoflash.cli identify --channel can0
-python -m autoflash.cli read     --channel can0 --out ./dump
-python -m autoflash.cli write    --channel can0 --block CAL --file ./tune/CAL.bin
+python -m autoflash.cli read --channel can0 --out ./dump
 ```
 
-Donanım: başlangıç için **Linux + SocketCAN + CANable** yeterli.
+## Current Milestone
 
-## Current milestone
+- Virtual ECU simulator is implemented.
+- Mock ECU driver is implemented.
+- CLI `--virtual` mode is implemented.
+- Driver capabilities and fail-closed safety metadata are implemented.
+- Operation plan, dry-run, and JSONL audit logging are implemented.
+- Regression tests are available and run in GitHub Actions.
+- Real ECU support is not implemented.
+- Simos18 integration is planned as a read-only research milestone.
+- Real hardware write/recovery work is intentionally left for the end.
 
-- Virtual ECU simulator tamamlandi.
-- Mock ECU driver tamamlandi.
-- CLI `--virtual` modu tamamlandi.
-- Regression tests mevcut.
-- Gercek ECU destegi henuz yok.
-- Simos18 entegrasyonu sonraki read-only milestone olarak planlaniyor.
-- SeedKeyProvider architecture is implemented in a separate research branch.
-- Real ECU support is still not implemented.
-- Driver capabilities/safety policy branch planned/implemented.
-- Write/recovery gercek donanimda en sona birakilacak.
+## Documentation
 
-### SeedKeyProvider research branch
+See [docs/README.md](docs/README.md) for the project documentation index.
 
-The `seedkey-provider-research` branch adds a safe provider architecture for mock
-seed-key handling, toy checksum strategies, toy container codecs, and
-recovery-oriented simulator tests. It does not implement real OEM seed-key
-algorithms, unlock exploits, protection bypasses, or real ECU write support.
+Key planning documents:
 
-### Memory map database branch
+- [Driver capabilities and safety policy](docs/driver_capabilities_policy.md)
+- [Operation plan and dry-run](docs/operation_plan_and_dry_run.md)
+- [SeedKeyProvider research plan](docs/seed_key_provider_plan.md)
+- [Memory map database plan](docs/memory_map_database_plan.md)
+- [Safe research roadmap](docs/safe_research_roadmap.md)
+- [Bench hardware notes](docs/bench_hardware_notes.md)
 
-The `memory-map-database` branch introduces a safe metadata layer for ECU family
-and block definitions. It models the idea of an ECU/protocol database without
-adding real unlock, bypass, or write support.
+The Simos18 read-only plan is maintained on the `simos18-readonly` branch.
 
-### Driver capabilities and safety policy
+## Adding an ECU Driver
 
-Drivers declare whether they are virtual-only, read-only, or research stubs. This
-makes the framework safer by preventing placeholder drivers from being
-interpreted as real ECU unlock/write support.
+Add a module under `autoflash/drivers/`, subclass `ECUDriver`, register it with
+the registry, and implement the family-specific methods for identification,
+memory maps, safe key handling, container decoding/encoding, and checksum
+correction.
 
-### Operation plan and dry-run branch
+Drivers must declare capabilities. Research stubs should fail closed and must
+not advertise real write/unlock support.
 
-The `operation-plan-and-dry-run` branch adds operation planning, dry-run support,
-and JSONL audit logging for write-like operations. It keeps real ECU write/unlock
-support disabled.
+## Roadmap
 
-## Yeni ECU eklemek
+1. [x] Framework skeleton
+2. [x] Virtual ECU simulator, mock driver, and tests
+3. [x] Read pipeline in simulation
+4. [x] Driver capability and safety policy layer
+5. [x] Operation plan, dry-run, and audit logging
+6. [ ] Simos18 read-only analysis branch
+7. [ ] Owned/authorized hardware read validation
+8. [ ] Bench mode planning
+9. [ ] Boot/BSL recovery planning
+10. [ ] Real write/recovery only after explicit safety gates
 
-`drivers/` altına yeni bir modül koy, `ECUDriver`'dan türet, `@registry.register`
-ile kaydet ve şu metotları doldur: `identify`, `memory_map`, `compute_key`,
-`decode_container`, `encode_container`, `correct_checksum`. `drivers/mock.py`
-çalışan bir referanstır (sanal ECU ile eşleşir).
+## Safety Scope
 
-## Yol haritası
+AutoFlash is for education, protocol learning, virtual simulation, and
+owned/authorized ECU research.
 
-1. [x] Framework iskeleti
-2. [x] **Sanal ECU simülatörü + mock driver + testler** (bu sürüm)
-3. [x] Read pipeline (upload 0x35/0x36/0x37) — simülasyonda çalışır
-4. [ ] Açık platform (Simos18): VW_Flash'tan checksum + container mantığı
-5. [ ] Gerçek donanımda read testi (sahip olunan ECU)
-6. [ ] Bench modu (doğrudan pinout)
-7. [ ] Boot/BSL (Tricore TC179x kurtarma)
-8. [ ] Write/recovery (en sona — brick riski)
+Out of scope:
 
-## Kapsam / sınır
+- No real ECU unlock support.
+- No OEM seed-key algorithms.
+- No RSA/SBOOT/CBOOT bypasses.
+- No boot password recovery.
+- No emissions defeat, DPF, EGR, SCR, or AdBlue removal.
+- No unauthorized ECU access.
+- No real ECU write support.
+- Virtual write is limited to the mock ECU simulator.
 
-Bu araç **sahip olduğun veya üzerinde çalışmaya yetkili olduğun** ECU'lar için,
-tuning · araştırma · ECU onarımı amaçlıdır. İki şey kapsam dışıdır:
-
-- Belirli bir üreticinin güncel korumasını sıfırdan kırmaya yönelik yeni exploit
-  geliştirme (platform-spesifik `compute_key`/`decode_container` stub bırakıldı).
-- Emisyon defeat (DPF/EGR/AdBlue/SCR silme) — emisyon mevzuatı kapsamında.
-
-## Referanslar
+## References
 
 - `bri3d/VW_Flash`, `bri3d/Simos18_SBOOT`, `bri3d/TC1791_CAN_BSL`
-- `pylessard/python-udsoncan` (UDS / ISO-14229)
-- python-can, can-isotp (ISO 15765-2)
+- `pylessard/python-udsoncan`
+- `python-can`
+- `can-isotp`

@@ -9,3 +9,4 @@ build/
 .vscode/
 desktop.ini
 Thumbs.db
+logs/
